@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 """
 Module to register blueprints and run the flask server
 in preparation for api calls
