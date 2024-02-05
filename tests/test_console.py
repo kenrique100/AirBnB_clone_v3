@@ -1,269 +1,147 @@
-import unittest
+#!/usr/bin/python3
+"""A unit test module for the console (command interpreter).
+"""
+import json
+import MySQLdb
 import os
-import sys
-import io
-from contextlib import contextmanager
-from datetime import datetime
+import sqlalchemy
+import unittest
+from io import StringIO
+from unittest.mock import patch
+
 from console import HBNBCommand
-from models import *
+from models import storage
+from models.base_model import BaseModel
+from models.user import User
+from tests import clear_stream
 
 
-@contextmanager
-def captured_output():
-    new_out, new_err = io.StringIO(), io.StringIO()
-    old_out, old_err = sys.stdout, sys.stderr
-    try:
-        sys.stdout, sys.stderr = new_out, new_err
-        yield sys.stdout, sys.stderr
-    finally:
-        sys.stdout, sys.stderr = old_out, old_err
-
-
-class Test_Console(unittest.TestCase):
+class TestHBNBCommand(unittest.TestCase):
+    """Represents the test class for the HBNBCommand class.
     """
-    Test the console
-    """
+    @unittest.skipIf(
+        os.getenv('HBNB_TYPE_STORAGE') == 'db', 'FileStorage test')
+    def test_fs_create(self):
+        """Tests the create command with the file storage.
+        """
+        with patch('sys.stdout', new=StringIO()) as cout:
+            cons = HBNBCommand()
+            cons.onecmd('create City name="Texas"')
+            mdl_id = cout.getvalue().strip()
+            clear_stream(cout)
+            self.assertIn('City.{}'.format(mdl_id), storage.all().keys())
+            cons.onecmd('show City {}'.format(mdl_id))
+            self.assertIn("'name': 'Texas'", cout.getvalue().strip())
+            clear_stream(cout)
+            cons.onecmd('create User name="James" age=17 height=5.9')
+            mdl_id = cout.getvalue().strip()
+            self.assertIn('User.{}'.format(mdl_id), storage.all().keys())
+            clear_stream(cout)
+            cons.onecmd('show User {}'.format(mdl_id))
+            self.assertIn("'name': 'James'", cout.getvalue().strip())
+            self.assertIn("'age': 17", cout.getvalue().strip())
+            self.assertIn("'height': 5.9", cout.getvalue().strip())
 
-    def setUp(self):
-        self.cli = HBNBCommand()
-        test_args = {'updated_at': datetime(2017, 2, 11, 23, 48, 34, 339879),
-                     'id': 'd3da85f2-499c-43cb-b33d-3d7935bc808c',
-                     'created_at': datetime(2017, 2, 11, 23, 48, 34, 339743),
-                     'name': 'SELF.MODEL'}
-        self.model = Amenity(**test_args)
-        self.model.save()
+    @unittest.skipIf(
+        os.getenv('HBNB_TYPE_STORAGE') != 'db', 'DBStorage test')
+    def test_db_create(self):
+        """Tests the create command with the database storage.
+        """
+        with patch('sys.stdout', new=StringIO()) as cout:
+            cons = HBNBCommand()
+            # creating a model with non-null attribute(s)
+            with self.assertRaises(sqlalchemy.exc.OperationalError):
+                cons.onecmd('create User')
+            # creating a User instance
+            clear_stream(cout)
+            cons.onecmd('create User email="john25@gmail.com" password="123"')
+            mdl_id = cout.getvalue().strip()
+            dbc = MySQLdb.connect(
+                host=os.getenv('HBNB_MYSQL_HOST'),
+                port=3306,
+                user=os.getenv('HBNB_MYSQL_USER'),
+                passwd=os.getenv('HBNB_MYSQL_PWD'),
+                db=os.getenv('HBNB_MYSQL_DB')
+            )
+            cursor = dbc.cursor()
+            cursor.execute('SELECT * FROM users WHERE id="{}"'.format(mdl_id))
+            result = cursor.fetchone()
+            self.assertTrue(result is not None)
+            self.assertIn('john25@gmail.com', result)
+            self.assertIn('123', result)
+            cursor.close()
+            dbc.close()
 
-    def tearDown(self):
-        self.cli.do_destroy("Amenity d3da85f2-499c-43cb-b33d-3d7935bc808c")
+    @unittest.skipIf(
+        os.getenv('HBNB_TYPE_STORAGE') != 'db', 'DBStorage test')
+    def test_db_show(self):
+        """Tests the show command with the database storage.
+        """
+        with patch('sys.stdout', new=StringIO()) as cout:
+            cons = HBNBCommand()
+            # showing a User instance
+            obj = User(email="john25@gmail.com", password="123")
+            dbc = MySQLdb.connect(
+                host=os.getenv('HBNB_MYSQL_HOST'),
+                port=3306,
+                user=os.getenv('HBNB_MYSQL_USER'),
+                passwd=os.getenv('HBNB_MYSQL_PWD'),
+                db=os.getenv('HBNB_MYSQL_DB')
+            )
+            cursor = dbc.cursor()
+            cursor.execute('SELECT * FROM users WHERE id="{}"'.format(obj.id))
+            result = cursor.fetchone()
+            self.assertTrue(result is None)
+            cons.onecmd('show User {}'.format(obj.id))
+            self.assertEqual(
+                cout.getvalue().strip(),
+                '** no instance found **'
+            )
+            obj.save()
+            dbc = MySQLdb.connect(
+                host=os.getenv('HBNB_MYSQL_HOST'),
+                port=3306,
+                user=os.getenv('HBNB_MYSQL_USER'),
+                passwd=os.getenv('HBNB_MYSQL_PWD'),
+                db=os.getenv('HBNB_MYSQL_DB')
+            )
+            cursor = dbc.cursor()
+            cursor.execute('SELECT * FROM users WHERE id="{}"'.format(obj.id))
+            clear_stream(cout)
+            cons.onecmd('show User {}'.format(obj.id))
+            result = cursor.fetchone()
+            self.assertTrue(result is not None)
+            self.assertIn('john25@gmail.com', result)
+            self.assertIn('123', result)
+            self.assertIn('john25@gmail.com', cout.getvalue())
+            self.assertIn('123', cout.getvalue())
+            cursor.close()
+            dbc.close()
 
-    def test_quit(self):
-        with self.assertRaises(SystemExit):
-            self.cli.do_quit(self.cli)
-
-    # one test for db without time zone, one for file
-    @unittest.skipIf(os.getenv('HBNB_TYPE_STORAGE', 'fs') != 'db', "db")
-    def test_show_correct(self):
-        with captured_output() as (out, err):
-            self.cli.do_show("Amenity d3da85f2-499c-43cb-b33d-3d7935bc808c")
-        output = out.getvalue().strip()
-        self.assertFalse("2017, 2, 11, 23, 48, 91" in output)
-        self.assertTrue('2017, 2, 11, 23, 48, 34' in output)
-
-    @unittest.skipIf(os.getenv('HBNB_TYPE_STORAGE', 'fs') == 'db', "db")
-    def test_show_correct(self):
-        with captured_output() as (out, err):
-            self.cli.do_show("Amenity d3da85f2-499c-43cb-b33d-3d7935bc808c")
-        output = out.getvalue().strip()
-        self.assertFalse("2017, 2, 11, 23, 48, 91, 339743" in output)
-        self.assertTrue('2017, 2, 11, 23, 48, 34, 339743' in output)
-
-    def test_show_error_no_args(self):
-        with captured_output() as (out, err):
-            self.cli.do_show('')
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** class name missing **")
-
-    def test_show_error_missing_arg(self):
-        with captured_output() as (out, err):
-            self.cli.do_show("Amenity")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** instance id missing **")
-
-    def test_show_error_invalid_class(self):
-        with captured_output() as (out, err):
-            self.cli.do_show("Human 1234-5678-9101")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** class doesn't exist **")
-
-    def test_show_error_class_missing(self):
-        with captured_output() as (out, err):
-            self.cli.do_show("d3da85f2-499c-43cb-b33d-3d7935bc808c")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** instance id missing **")
-
-    def test_create_no_arg(self):
-        with captured_output() as (out, err):
-            self.cli.do_create('')
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** class name missing **")
-
-    @unittest.skipIf(os.getenv('HBNB_TYPE_STORAGE', 'fs') == 'db', "db")
-    def test_create_with_FS(self):
-        with captured_output() as (out, err):
-            self.cli.do_create("Amenity")
-        output = out.getvalue().strip()
-
-        with captured_output() as (out, err):
-            self.cli.do_show("Amenity {}".format(output))
-        output2 = out.getvalue().strip()
-        self.assertTrue(output in output2)
-
-    def test_destroy_correct(self):
-        test_args = {'updated_at': datetime(2017, 2, 12, 00, 31, 53, 331997),
-                     'id': 'f519fb40-1f5c-458b-945c-2ee8eaaf4901',
-                     'created_at': datetime(2017, 2, 12, 00, 31, 53, 331900),
-                     'name': "TEST_DESTROY"}
-        testmodel = Amenity(test_args)
-        testmodel.save()
-        self.cli.do_destroy("Amenity f519fb40-1f5c-458b-945c-2ee8eaaf4901")
-
-        with captured_output() as (out, err):
-            self.cli.do_show("Amenity f519fb40-1f5c-458b-945c-2ee8eaaf4901")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** no instance found **")
-
-    def test_destroy_error_missing_id(self):
-        with captured_output() as (out, err):
-            self.cli.do_destroy("Amenity")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** instance id missing **")
-
-    def test_destroy_error_class_missing(self):
-        with captured_output() as (out, err):
-            self.cli.do_destroy("d3da85f2-499c-43cb-b33d-3d7935bc808c")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** instance id missing **")
-
-    def test_destroy_error_invalid_class(self):
-        with captured_output() as (out, err):
-            self.cli.do_destroy("Human d3da85f2-499c-43cb-b33d-3d7935bc808c")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** class doesn't exist **")
-
-    def test_destroy_error_invalid_id(self):
-        with captured_output() as (out, err):
-            self.cli.do_destroy("Amenity " +
-                                "f519fb40-1f5c-AAA-945c-2ee8eaaf4900")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** no instance found **")
-
-    def test_all_correct(self):
-        test_args = {'updated_at': datetime(2017, 2, 12, 00, 31, 53, 331997),
-                     'id': 'f519fb40-1f5c-458b-945c-2ee8eaaf4900',
-                     'created_at': datetime(2017, 2, 12, 00, 31, 53, 331900),
-                     'name': "TEST_ALL_CORRECT"}
-        testmodel = Amenity(test_args)
-        testmodel.save()
-        with captured_output() as (out, err):
-            self.cli.do_all("")
-        output = out.getvalue().strip()
-        self.assertTrue("d3da85f2-499c-43cb-b33d-3d7935bc808c" in output)
-        self.assertTrue("f519fb40-1f5c-458b-945c-2ee8eaaf4900" in output)
-        self.assertFalse("123-456-abc" in output)
-
-    def test_all_correct_with_class(self):
-        with captured_output() as (out, err):
-            self.cli.do_all("Amenity")
-        output = out.getvalue().strip()
-        self.assertTrue(len(output) > 0)
-        self.assertTrue("d3da85f2-499c-43cb-b33d-3d7935bc808c" in output)
-
-    def test_all_error_invalid_class(self):
-        with captured_output() as (out, err):
-            self.cli.do_all("Human")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** class doesn't exist **")
-
-    def test_update_correct(self):
-        with captured_output() as (out, err):
-            self.cli.do_update("Amenity " +
-                               "d3da85f2-499c-43cb-b33d-3d7935bc808c name Bay")
-        output = out.getvalue().strip()
-        self.assertEqual(output, '')
-
-        with captured_output() as (out, err):
-            self.cli.do_show("Amenity d3da85f2-499c-43cb-b33d-3d7935bc808c")
-        output = out.getvalue().strip()
-        self.assertTrue("Bay" in output)
-        self.assertFalse("Ace" in output)
-
-    def test_update_error_invalid_id(self):
-        with captured_output() as (out, err):
-            self.cli.do_update("Amenity 123-456-abc name Cat")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** no instance found **")
-
-    def test_update_error_no_id(self):
-        with captured_output() as (out, err):
-            self.cli.do_update("Amenity name Cat")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** value missing **")
-
-    def test_update_error_invalid_class(self):
-        with captured_output() as (out, err):
-            self.cli.do_update("Human " +
-                               "d3da85f2-499c-43cb-b33d-3d7935bc808c name Cat")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** class doesn't exist **")
-
-    def test_update_error_no_class(self):
-        with captured_output() as (out, err):
-            self.cli.do_update("d3da85f2-499c-43cb-b33d-3d7935bc808c name Cat")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** value missing **")
-
-    def test_update_error_missing_value(self):
-        with captured_output() as (out, err):
-            self.cli.do_update("Amenity " +
-                               "d3da85f2-499c-43cb-b33d-3d7935bc808c name")
-        output = out.getvalue().strip()
-        self.assertEqual(output, "** value missing **")
-
-    def test_state_argument(self):
-        with captured_output() as (out, err):
-            self.cli.do_create('State name="WEIRD"')
-        with captured_output() as (out, err):
-            self.cli.do_all("State")
-        output = out.getvalue().strip()
-        self.assertTrue("WEIRD" in output)
-
-    def test_city_2_arguments(self):
-        with captured_output() as (out, err):
-            self.cli.do_create('State name="Arizona"')
-        output = out.getvalue().strip()
-        with captured_output() as (out, err):
-            self.cli.do_create('City state_id="{}" name="Fremont"'.format(
-                output))
-
-    def test_city_2_arguments_space(self):
-        with captured_output() as (out, err):
-            self.cli.do_create('State name="Arizona"')
-        output = out.getvalue().strip()
-        with captured_output() as (out, err):
-            self.cli.do_create('City state_id="{}" name="Alpha_Beta"'.format(
-                output))
-        output = out.getvalue().strip()
-        with captured_output() as (out, err):
-            self.cli.do_show('City {}'.format(output))
-        output = out.getvalue().strip()
-        self.assertTrue("Alpha Beta" in output)
-
-    def test_place(self):
-        with captured_output() as (out, err):
-            self.cli.do_create('State name="Another_State"')
-        state_id = out.getvalue().strip()
-        with captured_output() as (out, err):
-            self.cli.do_create('City state_id="{}" name="Alpha_Beta"'.format(
-                state_id))
-        city_id = out.getvalue().strip()
-        with captured_output() as (out, err):
-            self.cli.do_create('User email="m@a.com" password="1234" '
-                               'first_name="John" last_name="Doe"')
-        user_id = out.getvalue().strip()
-        with captured_output() as (out, err):
-            self.cli.do_create('Place city_id="{}" user_id="{}"'
-                               ' name="My_house"'
-                               ' description="no_description_yet"'
-                               ' number_rooms=4 number_bathrooms=1 max_guest=3'
-                               ' price_by_night=100 latitude=120.12'
-                               ' longitude=101.4'.format(city_id, user_id))
-        output = out.getvalue().strip()
-        with captured_output() as (out, err):
-            self.cli.do_show('Place {}'.format(output))
-        output = out.getvalue().strip()
-        self.assertTrue("My house" in output)
-        self.assertTrue("100" in output)
-        self.assertTrue("120.12" in output)
-
-if __name__ == "__main__":
-    unittest.main()
+    @unittest.skipIf(
+        os.getenv('HBNB_TYPE_STORAGE') != 'db', 'DBStorage test')
+    def test_db_count(self):
+        """Tests the count command with the database storage.
+        """
+        with patch('sys.stdout', new=StringIO()) as cout:
+            cons = HBNBCommand()
+            dbc = MySQLdb.connect(
+                host=os.getenv('HBNB_MYSQL_HOST'),
+                port=3306,
+                user=os.getenv('HBNB_MYSQL_USER'),
+                passwd=os.getenv('HBNB_MYSQL_PWD'),
+                db=os.getenv('HBNB_MYSQL_DB')
+            )
+            cursor = dbc.cursor()
+            cursor.execute('SELECT COUNT(*) FROM states;')
+            res = cursor.fetchone()
+            prev_count = int(res[0])
+            cons.onecmd('create State name="Enugu"')
+            clear_stream(cout)
+            cons.onecmd('count State')
+            cnt = cout.getvalue().strip()
+            self.assertEqual(int(cnt), prev_count + 1)
+            clear_stream(cout)
+            cons.onecmd('count State')
+            cursor.close()
+            dbc.close()

@@ -1,41 +1,37 @@
 #!/usr/bin/python3
+""" Write a script that starts a Flask web application:
+Your web application must be listening on 0.0.0.0, port 5000
 """
-This is module 3-python_route.
-It starts a minimal Flask apllication.
-Run it with python3 -m 3-python_route or ./3-python_route
-"""
+
 from flask import Flask
-app = Flask(__name__)
+
+app = Flask("__name__")
 
 
-@app.route('/')
-def hello_hbnb():
-    """flask hello world"""
-    return "Hello HBNB!"
+@app.route('/', strict_slashes=False)
+def hello():
+    """Return a given string"""
+    return ("Hello HBNB!")
 
 
-@app.route('/hbnb')
+@app.route("/hbnb", strict_slashes=False)
 def hbnb():
-    """add a path to the url"""
-    return "HBNB"
+    """Returns a given string"""
+    return ("HBNB")
 
 
-@app.route('/c/<text>')
-def c_text(text):
-    """make a simple variable rule"""
+@app.route("/c/<text>", strict_slashes=False)
+def cText(text):
+    """display C followed by the value of the text variable"""
     return "C {}".format(text.replace("_", " "))
 
 
-@app.route('/python/')   # , defaults={'text': "is cool"})
-# redirection, strict_slashes prevents the 301 redirect when missing last /
-# see http://stackoverflow.com/a/17628419/7484498
-# the default value can be put in 2 different places.
-@app.route('/python/<text>')
-def python_text(text="is cool"):
-    """give a rule a default value"""
+@app.route('/python', strict_slashes=False)
+@app.route("/python/<text>", strict_slashes=False)
+def pythonText(text="is cool"):
+    """display Python followed by the value of the text variable"""
     return "Python {}".format(text.replace("_", " "))
 
 
 if __name__ == "__main__":
-    # values here are the default, mentioned as keepsake
-    app.run(host="0.0.0.0", port="5000")
+    app.run(host="0.0.0.0", port=5000, debug=None)

@@ -1,44 +1,44 @@
 #!/usr/bin/python3
+""" Write a script that starts a Flask web application:
+Your web application must be listening on 0.0.0.0, port 5000
 """
-This is module 4-number_route.
-It starts a minimal Flask apllication.
-Run it with python3 -m 4-number_route or ./4-number_route
-"""
+
 from flask import Flask
-app = Flask(__name__)
+
+app = Flask("__name__")
 
 
-@app.route('/')
-def hello_hbnb():
-    """flask hello world"""
-    return "Hello HBNB!"
+@app.route('/', strict_slashes=False)
+def hello():
+    """Return a given string"""
+    return ("Hello HBNB!")
 
 
-@app.route('/hbnb')
+@app.route("/hbnb", strict_slashes=False)
 def hbnb():
-    """add a path to the url"""
-    return "HBNB"
+    """Returns a given string"""
+    return ("HBNB")
 
 
-@app.route('/c/<text>')
-def c_text(text):
-    """make a simple variable rule"""
+@app.route("/c/<text>", strict_slashes=False)
+def cText(text):
+    """display C followed by the value of the text variable"""
     return "C {}".format(text.replace("_", " "))
 
 
-@app.route('/python/', defaults={'text': "is cool"})
-@app.route('/python/<text>')
-def python_text(text):
-    """give a rule a default value"""
+@app.route('/python', strict_slashes=False)
+@app.route("/python/<text>", strict_slashes=False)
+def pythonText(text="is cool"):
+    """display Python followed by the value of the text variable"""
     return "Python {}".format(text.replace("_", " "))
 
 
-@app.route('/number/<int:n>')
-def number_route(n):
-    """make a rule only take a number"""
-    return "{:d} is a number".format(n)
+@app.route("/number/<int:n>", strict_slashes=False)
+def isNumber(n):
+    """display “n is a number” only if n is an integer"""
+    if isinstance(n, int):
+        return "{} is a number".format(n)
 
 
 if __name__ == "__main__":
-    # values here are the default, mentioned as keepsake
-    app.run(host="0.0.0.0", port="5000")
+    app.run(host="0.0.0.0", port=5000, debug=None)
