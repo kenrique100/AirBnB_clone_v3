@@ -1,22 +1,25 @@
 #!/usr/bin/python3
-""" holds class Amenity"""
-import models
-from models.base_model import BaseModel, Base
+from models.base_model import BaseModel, Base, Table, Column, String
 from os import getenv
-import sqlalchemy
-from sqlalchemy import Column, String
-from sqlalchemy.orm import relationship
+"""
+amenity module
+    contains
+        the Amentiry class inherts from BaseModel and Base
+"""
 
 
 class Amenity(BaseModel, Base):
-    """Representation of Amenity """
-    if getenv('HBNB_TYPE_STORAGE') == 'db':
+    """
+    The Amenity class
+    """
+    if getenv('HBNB_TYPE_STORAGE', 'fs') == 'db':
         __tablename__ = 'amenities'
-        name = Column(String(128),
-                      nullable=False)
+        name = Column(String(128), nullable=False)
     else:
         name = ""
 
     def __init__(self, *args, **kwargs):
-        """initializes Amenity"""
+        """
+        initializes class objects. Inherts attributes from parent
+        """
         super().__init__(*args, **kwargs)

@@ -1,47 +1,34 @@
 #!/usr/bin/python3
-""" holds class User"""
-import hashlib
-import models
-from models.base_model import BaseModel, Base
+from models.base_model import BaseModel, Base, Table, Column, String
+from sqlalchemy.orm import relationship, backref
 from os import getenv
-from sqlalchemy.orm import relationship
-from sqlalchemy import Column, String
+"""
+user module
+    contains
+        The User Class inherts from BaseModel, Base
+"""
 
 
 class User(BaseModel, Base):
-    """Representation of a user """
+    """
+    User class
+    """
     if getenv('HBNB_TYPE_STORAGE') == 'db':
-        __tablename__ = 'users'
-        email = Column(String(128),
-                       nullable=False)
-        _password = Column('password',
-                           String(128),
-                           nullable=False)
-        first_name = Column(String(128),
-                            nullable=True)
-        last_name = Column(String(128),
-                           nullable=True)
-        places = relationship("Place",
-                              backref="user",
-                              cascade="all, delete-orphan")
-        reviews = relationship("Review",
-                               backref="user",
-                               cascade="all, delete-orphan")
+        __tablename__ = "users"
+        email = Column(String(128), nullable=False)
+        password = Column(String(128), nullable=False)
+        first_name = Column(String(128), nullable=True)
+        last_name = Column(String(128), nullable=True)
+        places = relationship("Place", backref="user",
+                              cascade="all, delete, delete-orphan")
     else:
         email = ""
-        _password = ""
+        password = ""
         first_name = ""
         last_name = ""
 
     def __init__(self, *args, **kwargs):
-        """initializes user"""
+        """
+        initializes from BaseModel
+        """
         super().__init__(*args, **kwargs)
-
-    @property
-    def password(self):
-        return self._password
-
-    @password.setter
-    def password(self, pwd):
-        """hashing password values"""
-        self._password = pwd

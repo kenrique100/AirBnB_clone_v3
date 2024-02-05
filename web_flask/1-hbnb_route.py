@@ -1,24 +1,25 @@
 #!/usr/bin/python3
-""" Write a script that starts a Flask web application:
-Your web application must be listening on 0.0.0.0, port 5000
 """
-
+This is module 1-hbnb_route.
+It starts a minimal Flask apllication.
+Run it with python3 -m 1-hbnb_route or ./1-hbnb_route
+"""
 from flask import Flask
-
-app = Flask("__name__")
-
-
-@app.route('/', strict_slashes=False)
-def hello():
-    """Return a given string"""
-    return ("Hello HBNB!")
+app = Flask(__name__)
 
 
-@app.route("/hbnb", strict_slashes=False)
+@app.route('/')
+def hello_hbnb():
+    """flask hello world"""
+    return "Hello HBNB!"
+
+
+@app.route('/hbnb')
 def hbnb():
-    """Returns a given string"""
-    return ("HBNB")
+    """add a path to the url"""
+    return "HBNB"
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=None)
+    # values here are the default, mentioned as keepsake
+    app.run(host="0.0.0.0", port="5000")

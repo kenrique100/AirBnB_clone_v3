@@ -1,92 +1,125 @@
-#!/usr/bin/python3
-""" """
-from tests.test_models.test_base_model import test_basemodel
-from models.place import Place
+import unittest
 import os
+from datetime import datetime
+from models import *
+from models.place import PlaceAmenity
 
 
-class test_Place(test_basemodel):
-    """ place tests class"""
+class Test_PlaceModel(unittest.TestCase):
+    """
+    Test the place model class
+    """
 
-    def __init__(self, *args, **kwargs):
-        """ init test class"""
-        super().__init__(*args, **kwargs)
-        self.name = "Place"
-        self.value = Place
+    def test_simple_initialization(self):
+        """initialization without arguments"""
+        model = Place()
+        self.assertTrue(hasattr(model, "id"))
+        self.assertTrue(hasattr(model, "created_at"))
+        self.assertTrue(hasattr(model, "city_id"))
+        self.assertTrue(hasattr(model, "user_id"))
+        self.assertTrue(hasattr(model, "name"))
+        self.assertTrue(hasattr(model, "description"))
+        self.assertTrue(hasattr(model, "number_rooms"))
+        self.assertTrue(hasattr(model, "number_bathrooms"))
+        self.assertTrue(hasattr(model, "max_guest"))
+        self.assertTrue(hasattr(model, "price_by_night"))
+        self.assertTrue(hasattr(model, "latitude"))
+        self.assertTrue(hasattr(model, "longitude"))
 
-    def test_city_id(self):
-        """ testing place city_id attr"""
-        new = self.value()
-        self.assertEqual(type(new.city_id), str if
-                         os.getenv('HBNB_TYPE_STORAGE') != 'db' else
-                         type(None))
+    def test_var_initialization(self):
+        """Check default type"""
+        model = Place()
+        self.assertIsInstance(model.created_at, datetime)
 
-    def test_user_id(self):
-        """ testing place user_id attr"""
-        new = self.value()
-        self.assertEqual(type(new.user_id), str if
-                         os.getenv('HBNB_TYPE_STORAGE') != 'db' else
-                         type(None))
+    def test_save(self):
+        """saving the object to storage"""
+        test_user = {'id': "001",
+                     'email': "you@g.com",
+                     'password': "1234",
+                     'first_name': "TEST",
+                     'last_name': "REVIEW"}
+        user = User(test_user)
+        test_state = {'id': "002",
+                      'created_at': datetime(2017, 2, 12, 00, 31, 55, 331997),
+                      'name': "TEST STATE FOR CITY"}
+        state = State(test_state)
+        test_city = {'id': "003",
+                     'name': "CITY SET UP",
+                     'state_id': "002"}
+        city = City(test_city)
+        test_place = {'id': "003",
+                      'city_id': "003",
+                      'user_id': "001",
+                      'name': "TEST REVIEW",
+                      'description': "blah blah",
+                      'number_rooms': 4,
+                      'number_bathrooms': 2,
+                      'max_guest': 4,
+                      'price_by_night': 23,
+                      'latitude': 45.5,
+                      'longitude': 23.4}
+        place = Place(test_place)
+        user.save()
+        state.save()
+        city.save()
+        place.save()
+        storage.delete(place)
+        # storage.delete(city) # cascade deletes it
+        storage.delete(user)
+        storage.delete(state)
 
-    def test_name(self):
-        """ testing place name attr"""
-        new = self.value()
-        self.assertEqual(type(new.name), str if
-                         os.getenv('HBNB_TYPE_STORAGE') != 'db' else
-                         type(None))
 
-    def test_description(self):
-        """testing place description attr"""
-        new = self.value()
-        self.assertEqual(type(new.description), str if
-                         os.getenv('HBNB_TYPE_STORAGE') != 'db' else
-                         type(None))
+@unittest.skipIf(os.getenv('HBNB_TYPE_STORAGE', 'fs') != 'db', "db")
+class Test_PlaceAmenityModel(unittest.TestCase):
+    """
+    Test the place amenity model class
+    """
 
-    def test_number_rooms(self):
-        """ testing place number of rooms attr"""
-        new = self.value()
-        self.assertEqual(type(new.number_rooms), int if
-                         os.getenv('HBNB_TYPE_STORAGE') != 'db' else
-                         type(None))
+    def test_save(self):
+        """creates and save a PlaceAmenity object"""
+        test_user = {'id': "002",
+                     'email': "you@g.com",
+                     'password': "1234",
+                     'first_name': "TEST",
+                     'last_name': "REVIEW"}
+        user = User(**test_user)
+        test_state = {'id': "001",
+                      'created_at': datetime(2017, 2, 12, 00, 31, 55, 331997),
+                      'name': "TEST STATE FOR CITY"}
+        state = State(**test_state)
+        test_city = {'id': "005",
+                     'name': "CITY SET UP",
+                     'state_id': "001"}
+        city = City(**test_city)
+        test_place = {'id': "002",
+                      'city_id': "005",
+                      'user_id': "002",
+                      'name': "TEST REVIEW",
+                      'description': "blah blah",
+                      'number_rooms': 4,
+                      'number_bathrooms': 2,
+                      'max_guest': 4,
+                      'price_by_night': 23,
+                      'latitude': 45.5,
+                      'longitude': 23.4}
+        place = Place(**test_place)
+        test_amenity = {'id': "010",
+                        'name': "TEST place_amenities"}
+        amenity = Amenity(**test_amenity)
+        pla = PlaceAmenity(place_id="002", amenity_id="010")
+        user.save()
+        state.save()
+        city.save()
+        place.save()
+        amenity.save()
+        storage._DBStorage__session.add(pla)
+        tmp = storage._DBStorage__session.query(PlaceAmenity).one()
+        storage._DBStorage__session.delete(tmp)
+        # storage.delete(amenity) ???, foreign key constraint on empty set
+        # storage.delete(place)
+        # storage.delete(user)
+        # storage.delete(state)
 
-    def test_number_bathrooms(self):
-        """ testing place number of bathrooms attr"""
-        new = self.value()
-        self.assertEqual(type(new.number_bathrooms), int if
-                         os.getenv('HBNB_TYPE_STORAGE') != 'db' else
-                         type(None))
 
-    def test_max_guest(self):
-        """ testing place max_guest attr"""
-        new = self.value()
-        self.assertEqual(type(new.max_guest), int if
-                         os.getenv('HBNB_TYPE_STORAGE') != 'db' else
-                         type(None))
-
-    def test_price_by_night(self):
-        """ testing place price by night attr"""
-        new = self.value()
-        self.assertEqual(type(new.price_by_night), int if
-                         os.getenv('HBNB_TYPE_STORAGE') != 'db' else
-                         type(None))
-
-    def test_latitude(self):
-        """ testing place latitud attr"""
-        new = self.value()
-        self.assertEqual(type(new.latitude), float if
-                         os.getenv('HBNB_TYPE_STORAGE') != 'db' else
-                         type(None))
-
-    def test_longitude(self):
-        """ testing place longitude attr"""
-        new = self.value()
-        self.assertEqual(type(new.latitude), float if
-                         os.getenv('HBNB_TYPE_STORAGE') != 'db' else
-                         type(None))
-
-    def test_amenity_ids(self):
-        """ testing amenity ids"""
-        new = self.value()
-        self.assertEqual(type(new.amenity_ids), list if
-                         os.getenv('HBNB_TYPE_STORAGE') != 'db' else
-                         type(None))
+if __name__ == "__main__":
+    unittest.main()

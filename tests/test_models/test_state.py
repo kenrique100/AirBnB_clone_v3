@@ -1,22 +1,34 @@
-#!/usr/bin/python3
-""" """
-from tests.test_models.test_base_model import test_basemodel
-from models.state import State
-import os
+import unittest
+from datetime import datetime
+from models import *
 
 
-class test_state(test_basemodel):
-    """ states test class"""
+class Test_StateModel(unittest.TestCase):
+    """
+    Test the state model class
+    """
 
-    def __init__(self, *args, **kwargs):
-        """ state test class init"""
-        super().__init__(*args, **kwargs)
-        self.name = "State"
-        self.value = State
+    def test_minimal_creation(self):
+        """creating an object with no arguments"""
+        model = State()
+        self.assertTrue(hasattr(model, "name"))
+        self.assertTrue(hasattr(model, "id"))
+        self.assertTrue(hasattr(model, "created_at"))
 
-    def test_name3(self):
-        """ testing state name attr"""
-        new = self.value()
-        self.assertEqual(type(new.name), str if
-                         os.getenv('HBNB_TYPE_STORAGE') != 'db' else
-                         type(None))
+    def test_var_initialization(self):
+        """Check default type"""
+        model = State()
+        self.assertIsInstance(model.created_at, datetime)
+
+    def test_save(self):
+        """Try to save the object to storage"""
+        test_state = {'id': "009",
+                      'created_at': datetime(2017, 2, 12, 00, 31, 55, 331997),
+                      'name': "TEST STATE FOR STATE"}
+        state = State(test_state)
+        state.save()
+        storage.delete(state)
+
+
+if __name__ == "__main__":
+    unittest.main()
